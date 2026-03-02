@@ -1,0 +1,214 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <base target="_top">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>🗺️ Карта Доставки</title>
+  <style>
+    html, body { height: 100%; margin: 0; padding: 0; }
+    #map { height: 100%; }
+    .info { position: absolute; top: 10px; left: 50%; transform: translateX(-50%);
+            background: white; padding: 10px 20px; border-radius: 8px;
+            box-shadow: 0 2px 6px rgba(0,0,0,0.3); z-index: 100; font-family: Arial, sans-serif; }
+    .legend { position: absolute; bottom: 30px; right: 10px; background: white;
+              padding: 10px; border-radius: 8px; box-shadow: 0 2px 6px rgba(0,0,0,0.3);
+              font-family: Arial, sans-serif; font-size: 12px; max-height: 80%; overflow-y: auto; }
+    .legend-item { display: flex; align-items: center; margin: 4px 0; cursor: pointer; }
+    .legend-color { width: 16px; height: 16px; border-radius: 50%; margin-right: 8px; flex-shrink: 0; }
+    .legend-item input { margin-right: 6px; cursor: pointer; }
+    .legend-item label { cursor: pointer; user-select: none; }
+  </style>
+</head>
+<body>
+  <div class="info" id="info">🔄 Загрузка данных...</div>
+  <div class="legend" id="legend"></div>
+  <div id="map"></div>
+
+  <!-- 🗺️ Leaflet.js -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
+  <script>
+    // Цвета маркеров
+    const STATUS_COLORS = {
+      'Ожидаем товар': '#FF0000',
+      'Готов к поставке': '#00FF00',
+      'Доставка своими силами': '#FFA500',
+      'Сторонняя доставка': '#800080',
+      'Забрать документы': '#00FFFF'
+    };
+
+    let map, markersLayer;
+    // Хранилище маркеров по статусам: { 'Статус': [marker1, marker2, ...] }
+    const markersByStatus = {};
+
+    function initMap() {
+      // Центр Москвы (Кремль)
+        map = L.map('map').setView([55.7558, 37.6173], 11);
+
+      // Слой карты (OpenStreetMap)
+      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        attribution: '© OpenStreetMap contributors',
+        maxZoom: 19
+      }).addTo(map);
+
+      markersLayer = L.layerGroup().addTo(map);
+
+      // Легенда с чекбоксами
+      const legend = L.control({ position: 'bottomright' });
+      legend.onAdd = function() {
+        const div = L.DomUtil.create('div', 'legend');
+        div.innerHTML = '<strong>Статусы:</strong><br>' +
+          Object.entries(STATUS_COLORS).map(([name, color]) => `
+            <div class="legend-item">
+              <input type="checkbox" id="layer_${encodeURIComponent(name)}" checked onchange="toggleLayer('${name}')">
+              <div class="legend-color" style="background:${color}"></div>
+              <label for="layer_${encodeURIComponent(name)}">${name}</label>
+            </div>
+          `).join('');
+        return div;
+      };
+      legend.addTo(map);
+
+      // Загружаем данные
+      loadData();
+
+      // Автообновление каждые 60 секунд
+      setInterval(loadData, 60000);
+    }
+
+    function loadData() {
+      console.log('🔄 loadData() вызвана');
+      document.getElementById('info').textContent = '🔄 Обновление...';
+
+      google.script.run
+        .withSuccessHandler(function(data) {
+          console.log('✅ Данные получены:', data?.length, 'точек');
+          renderMarkers(data);
+        })
+        .withFailureHandler(function(err) {
+          console.error('❌ Ошибка google.script.run:', err);
+          document.getElementById('info').textContent = '❌ Ошибка: ' + err.message;
+        })
+        .getMapData();
+    }
+
+    function renderMarkers(data) {
+      // ✅ ЭТИ СТРОКИ ДЛЯ ОТЛАДКИ:
+      window.lastMapData = data;
+      window.markersLayer = markersLayer;
+      window.map = map;
+
+      console.log('🎨 renderMarkers() вызвана');
+
+      markersLayer.clearLayers();
+      Object.keys(markersByStatus).forEach(key => delete markersByStatus[key]);
+
+      if (!data || data.length === 0) {
+        console.warn('⚠️ Нет данных для отрисовки');
+        document.getElementById('info').textContent = '⚠️ Нет данных';
+        return;
+      }
+
+      let rendered = 0;
+
+      data.forEach((point, idx) => {
+        // ✅ ИСПРАВЛЕНО: проверяем плоскую структуру (lat/lng на верхнем уровне)
+        const lat = point.lat !== undefined ? point.lat : (point.coords?.lat);
+        const lng = point.lng !== undefined ? point.lng : (point.coords?.lng);
+
+        // Пропускаем точки без координат
+        if (lat === undefined || lng === undefined || lat === null || lng === null) {
+          console.warn('⚠️ Точка без координат: ' + point.address + ' (' + (point.geocodingError || 'нет данных') + ')');
+          return;
+        }
+
+        const latNum = parseFloat(lat);
+        const lngNum = parseFloat(lng);
+
+        if (isNaN(latNum) || isNaN(lngNum)) {
+          console.warn('❌ Неверные координаты:', point);
+          return;
+        }
+
+        const marker = L.circleMarker([latNum, lngNum], {
+          radius: 8,
+          fillColor: STATUS_COLORS[point.status] || '#FFFF00',
+          fillOpacity: 0.9,
+          color: '#FFFFFF',
+          weight: 2,
+          status: point.status
+        });
+
+        marker.bindPopup(`<strong>${point.address}</strong><br><small>${point.status}</small><br><small>${point.description}</small>`);
+        marker.addTo(markersLayer);
+
+        if (!markersByStatus[point.status]) {
+          markersByStatus[point.status] = [];
+        }
+        markersByStatus[point.status].push(marker);
+
+        rendered++;
+      });
+
+      console.log(`✅ Отрисовано маркеров: ${rendered}/${data.length}`);
+
+      if (rendered > 0 && map.getZoom() === 11 && map.getCenter().lat === 55.7558) {
+        const group = new L.featureGroup(markersLayer.getLayers());
+        map.fitBounds(group.getBounds().pad(0.1));
+      }
+
+      document.getElementById('info').textContent = `✅ Обновлено: ${new Date().toLocaleTimeString('ru-RU')} | Точек: ${rendered}`;
+
+      setTimeout(() => {
+        document.getElementById('info').style.opacity = '0.7';
+      }, 3000);
+    }
+    // Функция переключения видимости слоя
+    function toggleLayer(statusName) {
+      const checkbox = document.getElementById(`layer_${encodeURIComponent(statusName)}`);
+      const markers = markersByStatus[statusName];
+
+      if (!markers) {
+        console.warn(`⚠️ Маркеры для статуса "${statusName}" не найдены`);
+        return;
+      }
+
+      const isVisible = checkbox.checked;
+      console.log(`🔘 ${statusName}: ${isVisible ? 'показать' : 'скрыть'} (${markers.length} маркеров)`);
+
+      markers.forEach(marker => {
+        if (isVisible) {
+          // ✅ Надёжное добавление: используем метод слоя
+          if (!markersLayer.hasLayer(marker)) {
+            markersLayer.addLayer(marker);
+          }
+        } else {
+          // ✅ Надёжное удаление: используем метод слоя
+          if (markersLayer.hasLayer(marker)) {
+            markersLayer.removeLayer(marker);
+          }
+        }
+      });
+    }
+
+    // Глобальные функции для управления всеми слоями (для консоли)
+    window.toggleAllLayers = function(show) {
+      Object.keys(STATUS_COLORS).forEach(status => {
+        const checkbox = document.getElementById(`layer_${encodeURIComponent(status)}`);
+        if (checkbox) {
+          checkbox.checked = show;
+          toggleLayer(status);
+        }
+      });
+      console.log(`🔘 Все слои: ${show ? 'показаны' : 'скрыты'}`);
+    };
+
+    window.showAllLayers = function() { window.toggleAllLayers(true); };
+    window.hideAllLayers = function() { window.toggleAllLayers(false); };
+
+    // Запускаем
+    initMap();
+  </script>
+</body>
+</html>
