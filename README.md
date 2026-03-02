@@ -27,8 +27,8 @@
 
 1. Откройте [вашу таблицу](examples/sample_sheet.csv) в Google Sheets
 2. Откройте [Apps Script](https://script.google.com/) → Новый проект
-3. Вставьте код из `apps-script/Code.gs` и `MapPage.html`
-4. Настройте `CONFIG` в начале `Code.gs`
+3. Вставьте код из `apps-script/Code.js` и `MapPage.html` в соответствующие файлы в Apps Sript (Code.gs, MapPage.html)
+4. Настройте `CONFIG` в начале `Code.js`
 5. Запустите `create5MinTrigger()` для автообновления
 6. Разверните веб-приложение: **Развернуть** → **Новое развертывание** → **Веб-приложение**
 
