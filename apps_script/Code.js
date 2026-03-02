@@ -10,7 +10,7 @@ const CONFIG = {
   STATUS_HEADERS: [
     'Ожидаем товар',
     'Готов к поставке',
-    'Доставка своими силами',
+    'Доставка своими',
     'Сторонняя доставка',
     'Забрать документы'
   ],
@@ -38,7 +38,7 @@ function waitForNominatimRateLimit() {
 const STATUS_COLORS = {
   'Ожидаем товар': 'ff0000ff',
   'Готов к поставке': 'ff00ff00',
-  'Доставка Женей': 'ffffa500',
+  'Доставка своими': 'ffffa500',
   'Сторонняя доставка': 'ff800080',
   'Забрать документы': 'ff00ffff'
 };
@@ -535,7 +535,7 @@ function getMapData() {
     const statusCols = {
       'Ожидаем товар': 2,
       'Готов к поставке': 3,
-      'Доставка Женей': 5,
+      'Доставка своими': 5,
       'Сторонняя доставка': 6,
       'Забрать документы': 8
     };
@@ -760,7 +760,7 @@ function debugTableStructure() {
   Logger.log('   "Адрес поставки": #' + (headers.findIndex(h => h?.toString().includes('Адрес')) + 1));
   Logger.log('   "Ожидаем товар": #' + (headers.findIndex(h => h?.toString().includes('Ожидаем')) + 1));
   Logger.log('   "Готов к поставке": #' + (headers.findIndex(h => h?.toString().includes('Готов')) + 1));
-  Logger.log('   "Доставка Женей": #' + (headers.findIndex(h => h?.toString().includes('Женей')) + 1));
+  Logger.log('   "Доставка своими": #' + (headers.findIndex(h => h?.toString().includes('своими')) + 1));
   Logger.log('   "Сторонняя доставка": #' + (headers.findIndex(h => h?.toString().includes('Сторонняя')) + 1));
   Logger.log('   "Забрать документы": #' + (headers.findIndex(h => h?.toString().includes('Забрать')) + 1));
 
