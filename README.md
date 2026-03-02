@@ -25,7 +25,7 @@
 
 ## 🚀 Быстрый старт
 
-1. Откройте [вашу таблицу](examples/sample_sheet.csv) в Google Sheets
+1. Откройте вашу таблицу в Google Sheets
 2. Откройте [Apps Script](https://script.google.com/) → Новый проект
 3. Вставьте код из `apps-script/Code.js` и `MapPage.html` в соответствующие файлы в Apps Sript (Code.gs, MapPage.html)
 4. Настройте `CONFIG` в начале `Code.js`
